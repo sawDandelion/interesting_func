@@ -1,0 +1,6 @@
+.rn_temp/
+.temp/
+dist/
+node_modules/
+.DS_Store
+tep.js

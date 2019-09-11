@@ -7,16 +7,16 @@
 import React, {Suspense} from 'react';
 
 export default function FloatLayout(props) {
-  const { fields = [] } = props;
+  const {fields = []} = props;
 
   function transformOptions(options = []) {
-    const { selectedData, selectedKey, onCancel, onSuccessCallback, ...restProps } = props;
+    const {selectedData, selectedKey, onCancel, onSuccessCallback, ...restProps} = props;
     const current = options.find(item => item.key == selectedKey);
     return {
       selectedData,
       config: current,
       onCancel,
-      visible: current != undefined,
+      visible: current != null,
       onSuccessCallback,
       ...restProps,
     };
@@ -29,4 +29,5 @@ export default function FloatLayout(props) {
       ))}
     </Suspense>
   );
+
 }

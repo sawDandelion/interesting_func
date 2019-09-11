@@ -75,8 +75,34 @@ export function parseMoment(value, format = "YYYY-MM-DD HH:mm:ss") {
   return value && moment(new Date(value), format) || moment();
 }
 
-export function getMomentValue(moment, format = "YYYY-MM-DD HH:mm:ss") {
-  return moment.format(format);
+export function getMomentValue(momentObj, format = "YYYY-MM-DD HH:mm:ss") {
+  if (momentObj) return momentObj.format(format);
+  return moment().format(format);
+}
+
+// 获取两日期之间的所有日期
+export function enumerateDaysBetweenDates(startDate, endDate, type = 'DD', compareType = 'days') {
+  let dates = [];
+  let currDate = parseMoment(startDate);
+  let lastDate = parseMoment(endDate);
+
+  while (currDate.diff(lastDate, compareType) <= 0) {
+    dates.push(getMomentValue(currDate, type));
+    currDate.add(1, compareType);
+  }
+
+  return dates;
+};
+
+/**
+ * 获取视频或者音频时长
+ * @param file
+ * @param callback
+ */
+export function getVideoDuration(file, callback) {
+  const fileUrl = URL.createObjectURL(file);
+  const audioElement = new Audio(fileUrl);
+  audioElement.addEventListener("loadedmetadata", () => callback(audioElement.duration));
 }
 
 /**
@@ -87,16 +113,24 @@ export function getMomentValue(moment, format = "YYYY-MM-DD HH:mm:ss") {
  */
 export function transformUploadFileValue(files, mode = 0) {
   let uploadImages = [];
+
   for (let file of files) {
     if (file.status === 'done') { //  上传成功
       let url;
-      if (file.response) {  //  上传结果
+      if (file.response && file.response.file) { //  上传结果
         url = file.response.file[0];
+
+      } else if (file.response && file.response.vodId) {
+        url = file.response.vodId;
+
       } else if (file.url) {
         url = file.url;
       }
       if (mode === 2) {
-        uploadImages.push({url, name: file.name});
+        uploadImages.push({
+          url,
+          name: file.name
+        });
       } else {
         uploadImages.push(url);
       }
@@ -108,11 +142,8 @@ export function transformUploadFileValue(files, mode = 0) {
       return uploadImages.join(',');
     case 1:
     case 2:
-      return uploadImages.length === 1 ? uploadImages[0] : uploadImages;
+      return uploadImages;
     case 3:
       return files;
   }
 }
-
-
-

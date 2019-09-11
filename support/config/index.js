@@ -1,10 +1,18 @@
 import router from 'umi/router';
 import {message} from 'antd';
 import {getPersistenceData} from "../utils/Persistence";
-import {SL_TOKEN} from "../../utils/constants";
+import {SL_TOKEN, SL_USER_NAME} from "../../utils/constants";
+import {
+  getVodUrl,
+  PATH_AUTH_FILE,
+  PATH_AUTH_IMAGE,
+  PATH_AUTH_VIDEO,
+  PATH_REFRESH_VIDEO
+} from "../../services/constants-vod";
+import request from '@/support/utils/request';
+import {createFileName, createName} from "../utils/CommonHelper";
 import {getFileUrl, PATH_FILE_UPLOAD, PROJECT_FILE} from "../../services/constants";
-import request from "../utils/request";
-import {PROJECT_RAW} from "../../services";
+import {PROJECT_RAW_HR} from "../../services";
 
 /**
  *
@@ -44,22 +52,26 @@ export function checkAuthority(authorities) {
 
 /**
  * withFetch触发componentWillReceiveProps函数时, 通过该方法判断是否刷新
+ * warn: 此方法已弃用, 暂时保留
  * */
 export function updatePropsWhetherToRefresh(nextProps, oldProps) {
-  if (nextProps.selectedData && oldProps.selectedData) {
-    return oldProps.selectedData.id != nextProps.selectedData.id;
+  let newData = nextProps && nextProps.selectedData;
+  let oldData = oldProps && oldProps.selectedData;
+
+  if (newData && oldData && (!nextProps.dataSource || !nextProps.list)) {
+    return nextProps.visible;
   } else {
-    return nextProps && nextProps.selectedData && nextProps.visible;
+    return nextProps && newData && nextProps.visible;
   }
 }
 
 /**
  * withFetch触发componentWillReceiveProps函数时, 通过该方法判断是否清空state数据
+ * warn: 此方法已弃用, 暂时保留
  * */
 export function updatePropsWhetherToClearState(prevProps, nextProps) {
   const prevSelectData = prevProps.selectedData;
   const nextSelectData = nextProps.selectedData;
-
   return (
     nextProps.visible &&
     (nextSelectData == null || (prevSelectData && nextSelectData.id != prevSelectData.id))
@@ -100,9 +112,14 @@ export function handleResponse(res, showMessage, msg) {
   const {data, resultCode} = res;
   let messageValue = msg || res.message;
 
+
   if (resultCode === 0 || resultCode === '0' || resultCode === 200) {
     if (showMessage && messageValue) message.success(messageValue);
     return data;
+
+  } else if (res.RequestId && res.UploadAuth && res.UploadAddress) {  // 阿里云接口数据兼容(单独处理)
+    return data;
+
   } else {
     const find = ERROR_CODES.find(item => item.code == resultCode);
     messageValue = find ? find.value : res.message;
@@ -166,18 +183,111 @@ export function hasLoadMore(data) {
 }
 
 
+const defaultUploadParams = {
+  //分片大小默认1M，不能小于100K
+  partSize: 1048576,
+  //并行上传分片个数，默认5
+  parallel: 5,
+  //网络原因失败时，重新上传次数，默认为3
+  retryCount: 3,
+  //网络原因失败时，重新上传间隔时间，默认为2秒
+  retryDuration: 2,
+};
+
 /**
  *
  * @param file
  * @param mode = {0=图片, 1=视频, 2=文件}
  * @returns {*}
  */
-export function uploadFile(file, mode) {
-  const fileName = mode === 1 ? 'videos' : mode === 0 ? 'images' : 'files';
-  return request({
-    url: getFileUrl(PATH_FILE_UPLOAD, PROJECT_FILE, window[PROJECT_RAW]),
-    method: 'POST',
-    bodyType: 'FORM_DATA',
-    body: {id: 'source', id_number: 'hr-hadoop-service', name: fileName, file: file},
-  });
+export async function uploadFile(param, mode) {
+  const {file} = param;
+
+  if (RUNS_DATA_CHANNEL === 'LOCAL') {
+    await request({
+      url: getFileUrl(PATH_FILE_UPLOAD, PROJECT_FILE, window[PROJECT_RAW_HR]),
+      method: 'POST',
+      bodyType: 'FORM_DATA',
+      body: {id: 'source', id_number: 'hr-hadoop-service', name: file.name, file: file},
+    }).then((res) => param.onSuccess(res, file));
+    return;
+  }
+
+  if (mode === 1) { // video
+    let videoId = '', uploadAuth, uploadAddress;
+    let authInfo = await request({
+      url: getVodUrl(PATH_AUTH_VIDEO),
+      method: 'POST',
+      body: {title: file.name, fileName: file.name}
+    });
+
+    const uploader = new AliyunUpload.Vod({
+      // 阿里账号ID，必须有值
+      userId: authInfo.userId,
+      ...defaultUploadParams,
+      // 开始上传
+      'onUploadstarted': async function (uploadInfo) {
+        if (uploadInfo.videoId) {
+          authInfo = await request({
+            url: getVodUrl(PATH_REFRESH_VIDEO + uploadInfo.videoId),
+            method: 'GET',
+          });
+          videoId = uploadInfo.videoId;
+          uploadAuth = authInfo.UploadAuth;
+          uploadAddress = authInfo.UploadAddress;
+        } else {
+          videoId = authInfo.videoId;
+          uploadAuth = authInfo.uploadAuth;
+          uploadAddress = authInfo.uploadAddress;
+        }
+        uploader.setUploadAuthAndAddress(uploadInfo, uploadAuth, uploadAddress, videoId);
+      },
+      // 文件上传成功
+      'onUploadSucceed': function (uploadInfo) {
+        param.onSuccess({vodId: uploadInfo.videoId}, file);
+      },
+    });
+
+    uploader.addFile(file);
+    uploader.startUpload();
+
+  } else if (mode === 2) {  // other
+
+    const fileName = createName({fileName: file.name, prefix: getPersistenceData(SL_USER_NAME)});
+    let authInfo = await request({url: getVodUrl(PATH_AUTH_FILE), method: 'GET'});
+    const client = new OSS.Wrapper({...authInfo, secure: true});
+    const result = await client.put(fileName, file);
+
+    if (result.res.status === 200 && result.res.statusCode === 200) {
+      param.onSuccess({file: result.res.requestUrls}, file);
+    }
+
+  } else {  // image
+
+    let authInfo = await request({
+      url: getVodUrl(PATH_AUTH_IMAGE),
+      method: 'POST',
+      body: {imageType: 'default'}
+    });
+
+    const uploader = new AliyunUpload.Vod({
+      // 阿里账号ID，必须有值
+      userId: authInfo.userId,
+      ...defaultUploadParams,
+      // 开始上传
+      'onUploadstarted': async function (uploadInfo) {
+        uploader.setUploadAuthAndAddress(uploadInfo, authInfo.uploadAuth, authInfo.uploadAddress, authInfo.imageId);
+      },
+      // 文件上传成功
+      'onUploadSucceed': function (uploadInfo) {
+        param.onSuccess({vodId: authInfo.imageUrl}, file);
+      },
+    });
+
+    uploader.addFile(file);
+    uploader.startUpload();
+
+
+  }
+
 }

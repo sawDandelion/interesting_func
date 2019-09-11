@@ -12,13 +12,27 @@ import {transformComponent} from '../utils/ViewHelper';
 
 export default class TableComponent extends React.Component {
 
-  state = {};
+  state = {
+    rowKeyName: 'id'
+  };
 
   defaultRowSelection() {
-    const {selectedRowKeys = []} = this.state;
+    const {selectedRowKeys = [], selectedRows = [], rowKeyName = 'id'} = this.state;
     return {
       selectedRowKeys,
-      onChange: (selectedRowKeys, selectedRows) => this.setState({selectedRowKeys}),
+      onChange: (keys, rows) => {
+        if (keys.length === rows.length) {
+          this.setState({selectedRowKeys: keys, selectedRows: rows});
+        } else {
+          let list = [...rows, ...selectedRows];
+          let temp = [];
+          for (let key of keys) {
+            const find = list.find(item => item[rowKeyName] === key);
+            if (find != null) temp.push(find);
+          }
+          this.setState({selectedRowKeys: keys, selectedRows: temp});
+        }
+      },
     };
   }
 
@@ -73,24 +87,33 @@ export default class TableComponent extends React.Component {
   }
 
   /**
+   * 初始化分页参数
+   */
+  initPagination() {
+    const {total = 0, page = 1, pageSize} = this.props;
+    return {
+      onShowSizeChange: this.onShowSizeChange.bind(this),
+      total: total,
+      current: page,
+      pageSize: pageSize,
+      showSizeChanger: true,
+      showTotal: (total, range) => `总共: ${total} 条数据`
+    }
+  }
+
+
+  /**
    * 初始化Table组件
    * */
   initTableView() {
     const {showPagination = true, showRowSelection = false,} = this.state;
-    const {total = 0, list = [], loading = false, page = 1, pageSize} = this.props;
+    const {list = [], loading = false} = this.props;
     const tableParams = {
       loading,
       dataSource: list,
       rowKey: this.rowKey.bind(this),
       onChange: this.onTableChange.bind(this),
-      pagination: showPagination && {
-        onShowSizeChange: this.onShowSizeChange.bind(this),
-        total: total,
-        current: page,
-        pageSize: pageSize,
-        showSizeChanger: true,
-        showTotal: (total, range) => `总共: ${total} 条数据`
-      },
+      pagination: showPagination && this.initPagination(),
     };
     if (showRowSelection) {
       tableParams.rowSelection = {...this.defaultRowSelection(), ...this.rowSelection()};
@@ -154,7 +177,7 @@ export default class TableComponent extends React.Component {
     if (actions && Array.isArray(actions)) {
       let temp = [];
       for (let i = 0; i < actions.length; i++) {
-        if (checkAuthority(actions[i].authority)) {
+        if (checkAuthority(actions[i].authority) && (!actions[i].hasOwnProperty('visibility') || actions[i].visibility)) {
           temp.push(transformComponent(actions[i]));
           if (i < actions.length - 1) {
             temp.push(<Divider key={'d_' + i} type="vertical"/>);

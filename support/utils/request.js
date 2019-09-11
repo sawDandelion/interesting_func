@@ -47,39 +47,43 @@ export default function request(params) {
     showMessage,
     msg,
     headers,
+    initDefaultHeader = true
   } = params;
 
-  const newOptions = {
-    method: method.toUpperCase(),
-    headers: {...defaultRequestHeaders(), ...headers},
-  };
+  const temp = {method: method.toUpperCase()};
+
+  if (initDefaultHeader) {
+    temp.headers = {...defaultRequestHeaders(), ...headers};
+  } else {
+    temp.headers = {...headers};
+  }
 
   if (checkLogin && !checkLoginPermissions()) {
     router.replace('/user/login');
     return;
   }
 
-  if (
-    (newOptions.method === 'POST' ||
-      newOptions.method === 'PUT' ||
-      newOptions.method === 'DELETE') &&
-    body
-  ) {
-    if (bodyType == 'FORM_DATA') {
-      newOptions.body = parseFormData(body);
+  if (['POST', 'PUT', 'DELETE'].find(item => temp.method === item) && body) {
 
-    } else if (bodyType == 'JSON') {
-      newOptions.credentials = 'include';
-      newOptions.headers['Content-Type'] = 'application/json; charset=utf-8';
-      newOptions.body = JSON.stringify(body);
+    if (bodyType === 'FORM_DATA') {
+      temp.body = parseFormData(body);
+
+    } else if (bodyType === 'JSON') {
+      //temp.credentials = 'include';
+      temp.headers['Content-Type'] = 'application/json; charset=utf-8';
+      temp.body = JSON.stringify(body);
+
+    } else if (bodyType === 'GET') {
+      url += parseUrlData(body);
     }
-  } else if (newOptions.method === 'GET') {
-    newOptions.credentials = 'include';
-    newOptions.headers['Content-Type'] = 'application/json; charset=utf-8';
+
+  } else if (temp.method === 'GET') {
+    // temp.credentials = 'include';
+    temp.headers['Content-Type'] = 'application/json; charset=utf-8';
     url += parseUrlData(body);
   }
 
-  return fetch(url, newOptions)
+  return fetch(url, temp)
     .then(checkStatus)
     .then(response => response.json())
     .then(res => handleResponse(res, showMessage, msg))
@@ -89,3 +93,20 @@ export default function request(params) {
       return Promise.reject(e);
     });
 }
+
+
+/**
+ * 下载文件
+ */
+export function downloadFile(fileUrl, fileName) {
+  fetch(fileUrl)
+    .then(res => res.blob().then(blob => {
+      const a = document.createElement('a');
+      const url = window.URL.createObjectURL(blob);
+      a.href = url;
+      a.download = fileName;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    }));
+}
+

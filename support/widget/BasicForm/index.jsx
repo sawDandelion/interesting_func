@@ -6,7 +6,7 @@ import useHandle from '../../hooks/useHandle';
 import ExModal from '../ExModal';
 import ExDrawer from '../ExDrawer';
 import {setFormLayout, transformData} from '../../utils/FormHelper';
-import {debounce} from "lodash";
+import {throttle} from "lodash";
 
 const FormItem = Form.Item;
 
@@ -26,6 +26,7 @@ const BasicForm = function (props) {
     footer,
     formLayout = {labelCol: 4, wrapperCol: 20},
     buttonParams = {text: '提交', offset: 0, span: 24, style: {width: '100%'}},
+    formStyle
   } = props;
 
   const {isLoading, onHandle} = useHandle();
@@ -33,15 +34,15 @@ const BasicForm = function (props) {
   const {getFieldDecorator} = form;
 
   const onSubmit = (event) => {
-    //event.persist();
+    //event.persist();A
     form.validateFields((err, values) => {
-      debounce(async () => {
+      throttle(async () => {
         if (!err && props.onSubmit) {
           props.onSubmit(values, onHandle);
         } else if (!err && submitParams) {
           await onHandle(submitParams(values)).then((result) => onSuccessCallback(result));
         }
-      }, 200)();
+      }, 1000)();
     });
   };
 
@@ -52,7 +53,7 @@ const BasicForm = function (props) {
     const {key, formItemOptions, fieldDecoratorOptions, render} = transformData(item);
     if (key && render) {
       return (
-        <FormItem  {...formItemOptions} {...setFormLayout(formLayout)} key={key}>
+        <FormItem {...setFormLayout(formLayout)} {...formItemOptions} key={key}>
           {getFieldDecorator(key, fieldDecoratorOptions)(render)}
         </FormItem>
       );
@@ -73,7 +74,7 @@ const BasicForm = function (props) {
 
   function initFormView() {
     return (
-      <Form style={{flexGrow: 1}}>
+      <Form style={{flexGrow: 1, ...formStyle}}>
         {
           children && Array.isArray(children)
             ? transFormChildren(children)
@@ -143,6 +144,7 @@ const BasicForm = function (props) {
       );
     }
     case 4:
+    case 5:
       return initFormView();
   }
 };

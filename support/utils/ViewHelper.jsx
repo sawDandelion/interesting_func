@@ -9,13 +9,14 @@ import {
   Radio,
   Select,
   Switch,
-  TreeSelect,
   TimePicker,
+  TreeSelect,
 } from 'antd';
 import React from 'react';
 import UploadView from '../widget/UploadView';
 import {uploadNormFile} from './FormHelper';
 import {uploadFile} from '../config';
+import SearchSelect from "../widget/SearchSelect";
 
 const {MonthPicker, RangePicker, WeekPicker} = DatePicker;
 
@@ -51,7 +52,9 @@ export function transformComponent(component) {
     componentName,
     componentChildren = [],
     componentOptions,
-    transformChildren = item => ({key: item.key, value: item.key, text: item.value}),
+    transformChildren = item => {
+      return {key: item.key, value: item.key, text: item.value}
+    },
   } = component;
 
   if (component.componentName) {
@@ -87,6 +90,9 @@ export function transformComponent(component) {
             })}
           </Select>
         );
+
+      case 'SearchSelect':
+        return <SearchSelect transformChildren={transformChildren} key={key} placeholder={'请选择'} {...componentOptions}/>
 
       case 'TreeSelect':
         return (
@@ -193,19 +199,6 @@ function traverseView(ViewNode, item) {
  */
 export function uploadTemplate({key, content, value, required = true, count = 1}, mode = 0) {
 
-  let accept = '';
-  switch (mode) {
-    case 0:
-      accept = 'image/jpeg,image/png';
-      break;
-    case 1:
-      accept = 'video/mp4';
-      break;
-    case 2:
-      //accept = 'file';
-      break;
-  }
-
   return {
     key,
     content,
@@ -214,9 +207,7 @@ export function uploadTemplate({key, content, value, required = true, count = 1}
     componentOptions: {
       mode,
       count,
-      accept,
       customRequest: (param) => onUploadCover(param, mode),
-      //onChange: ({fileList}) => onChange(fileList)
     },
     fieldDecoratorOptions: {
       ...uploadNormFile,
@@ -226,11 +217,9 @@ export function uploadTemplate({key, content, value, required = true, count = 1}
   };
 }
 
-export async function onUploadCover(param, mode) {
+export function onUploadCover(param, mode) {
   try {
-    await uploadFile(param.file, mode).then(result => {
-      param.onSuccess(result, param.file);
-    });
+    uploadFile(param, mode);
   } catch (e) {
     param.onError(e, {}, param.file);
   }
@@ -247,3 +236,7 @@ export function transformViews(fields) {
     return transformComponent(fields);
   }
 }
+
+
+
+

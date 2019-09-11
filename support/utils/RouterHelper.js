@@ -5,7 +5,7 @@
  */
 
 import router from 'umi/router';
-import { parse } from 'qs';
+import {parse} from 'qs';
 
 /**
  * 跳转
@@ -31,7 +31,7 @@ export function exGoBack() {
 export function getRedirect() {
   const urlParams = new URL(window.location.href);
   const params = getPageQuery();
-  let { redirect } = params;
+  let {redirect} = params;
   if (redirect) {
     const redirectUrlParams = new URL(redirect);
     if (redirectUrlParams.origin === urlParams.origin) {
@@ -44,7 +44,7 @@ export function getRedirect() {
       return;
     }
   }
-  return redirect || '/';
+  return redirect || '/home';
 }
 
 function getPageQuery() {

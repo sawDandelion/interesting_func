@@ -2,7 +2,16 @@ import React from 'react';
 import styles from './index.less';
 
 export default function ScrollView(props) {
-  return <div className={styles.content}>{props.children}</div>;
+
+  return (
+    <div className={styles["outer-container"]}>
+      <div className={styles["inner-container"]}>
+        <div className={styles.content}>
+          {props.children}
+        </div>
+      </div>
+    </div>
+  );
 
   /*state = {
       height: document.documentElement.clientHeight * 3 / 4,

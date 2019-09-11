@@ -3,15 +3,9 @@
  * */
 import React, {Component} from 'react';
 import hoistNonReactStatic from 'hoist-non-react-statics';
-import {
-  defaultListParams,
-  LOADING_REFRESH_TYPE,
-  PAGE_SIZE,
-  parseListData,
-  updatePropsWhetherToClearState,
-  updatePropsWhetherToRefresh,
-} from '../config';
+import {defaultListParams, PAGE_SIZE, parseListData,} from '../config';
 import {connect} from 'dva';
+import {equalsObj} from "../utils/CommonHelper";
 
 const defaultState = {
   dataSource: null,
@@ -27,7 +21,7 @@ const ACTION_REFRESH = 'common/onRefresh';
 export const withRefresh = (
   mapPropsToAction,
   mapStateToProps,
-  options = {automatic: true},
+  options = {automatic: true, plural: false, isPop: false},
 ) => WrappedComponent => {
 
   @connect(state => {
@@ -38,17 +32,28 @@ export const withRefresh = (
 
     state = defaultState;
 
-    componentWillMount() {
+    componentDidMount() {
       if (options && options.automatic) this.onRefresh();
     }
 
-    componentWillReceiveProps(nextProps, nextContext) {
-      if (updatePropsWhetherToRefresh(nextProps, this.props)) {
-        this.onRefresh(nextProps);
+    static getDerivedStateFromProps(nextProps, prevState) {
+      if (!nextProps.visible && !nextProps.config && options.isPop) return defaultState;
+      return null;
+    }
+
+    getSnapshotBeforeUpdate(prevProps, prevState) {
+      return null;
+    }
+
+    componentDidUpdate(prevProps, prevState, snapshot) {
+      const result = equalsObj(prevProps.selectedData, this.props.selectedData);
+      if (this.props.visible && (!result || (!prevProps.config || prevProps.config.key !== this.props.config.key))) {
+        this.onRefresh();
       }
-      if (updatePropsWhetherToClearState(this, nextProps)) {
-        this.setState(defaultState);
-      }
+    }
+
+    componentDidCatch(error, errorInfo) {
+      console.log(errorInfo);
     }
 
     componentWillUnmount() {
@@ -72,7 +77,7 @@ export const withRefresh = (
 
       if (action.type == ACTION_REFRESH && action.payload.url == null) return;
 
-      this.setState(this.onBeforeRefreshUpdateState(LOADING_REFRESH_TYPE));
+      //this.setState(this.onBeforeRefreshUpdateState(LOADING_REFRESH_TYPE));
 
       const {location, dispatch} = this.props;
       const {page, pageSize, searchValues} = this.state;
@@ -136,9 +141,8 @@ export const withRefresh = (
         const {total, list} = parseListData(dataSource);
         injectedProps.list = list;
         injectedProps.total = total;
-      } else {
-        injectedProps.dataSource = dataSource || {};
       }
+      injectedProps.dataSource = dataSource || {};
 
       return <WrappedComponent {...restProps} {...injectedProps} />;
     }

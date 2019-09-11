@@ -1,8 +1,23 @@
-.content {
-  overflow-y: auto;
-  flex-grow: 1;
+
+.outer-container, .content {
+  width: 347px;
+  height: 625px;
+}
+
+.outer-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.inner-container {
+  position: absolute;
+  left: 0;
   overflow-x: hidden;
-  height: 100%;
+  overflow-y: scroll;
   overflow-scrolling: touch;
-  padding-bottom: 50px;
+}
+
+/* for Chrome */
+.inner-container::-webkit-scrollbar {
+  display: none;
 }

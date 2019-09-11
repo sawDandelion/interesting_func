@@ -2,19 +2,18 @@
  * 设置FormItem参数
  * */
 import {transformComponent} from './ViewHelper';
-import {Form} from 'antd';
 
-export function setFormItemOptions(label, labelCol = 4, wrapperCol = 20) {
+export function setFormItemOptions(label, labelCol, wrapperCol) {
   return {
     label,
-    labelCol: {
+    ...labelCol ? {labelCol: {
       xs: {span: 24},
       sm: {span: labelCol},
-    },
-    wrapperCol: {
+    }} : {},
+    ...wrapperCol ? {wrapperCol: {
       xs: {span: 24},
       sm: {span: wrapperCol},
-    },
+    }} : {},
   };
 }
 
@@ -98,7 +97,9 @@ export function transformData({
  * */
 export const uploadNormFile = {
   valuePropName: 'fileList',
-  getValueFromEvent: e => (Array.isArray(e) ? e : e && e.fileList),
+  getValueFromEvent: e => {
+    return e.fileList.filter(item => item.hasOwnProperty('status'));
+  },
 };
 
 export function transformFileValue(url, index = -1) {

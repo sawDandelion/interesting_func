@@ -1,4 +1,4 @@
-import {Tooltip} from "antd";
+import {Icon, Tooltip} from "antd";
 import React from "react";
 
 /**
@@ -7,18 +7,25 @@ import React from "react";
  * @since 17/06/2019
  */
 
-export default function ExTooltip(props) {
+const ExTooltip = (props) => {
 
-  const {value, maxLength = 50, mode, title} = props;
+  const {value, maxLength = 50, mode = 0, name} = props;
 
-  if (value == null || value == undefined) return '--';
-  if (maxLength >= value.length) return value;
+  if (value == null || value === undefined) return '--';
+  if (maxLength >= value.length && mode === 0) return value;
 
-  return (
-    <Tooltip title={value}>
-      <span>{value.substring(0, maxLength) + '...'}</span>
-    </Tooltip>
-  );
-
-
+  return mode === 1
+    ? (
+      <Tooltip title={value}>
+        <span style={{paddingRight: 8}}>{name}</span>
+        <Icon type="question-circle"/>
+      </Tooltip>
+    )
+    : (
+      <Tooltip title={value}>
+        <span>{value.substring(0, maxLength) + '...'}</span>
+      </Tooltip>
+    );
 };
+
+export default ExTooltip;

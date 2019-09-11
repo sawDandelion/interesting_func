@@ -14,7 +14,7 @@ export default class SearchForm extends PureComponent {
   handleSearch = e => {
     e.preventDefault();
     this.props.form.validateFields((err, values) => {
-      this.props.onSubmit(values);
+      if (!err && this.props.onSubmit) this.props.onSubmit(values);
     });
   };
 
@@ -58,7 +58,7 @@ export default class SearchForm extends PureComponent {
     const {dataSource = [], form} = this.props;
     const {getFieldDecorator} = form;
     return (
-      <Form {...this.initFormParams()}>
+      <Form {...this.initFormParams()} className={'search-form'}>
         {dataSource.map((item, position) => {
           const defaultStyle = {width: 200};
           if (!item.componentOptions) {
